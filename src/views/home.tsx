@@ -204,10 +204,6 @@ const Home = ({ history }: propType) => {
                         const token = localStorage.getItem('token');
                         if ( token === null) history.push('/login');
                         for (let i = 0; i < threads.length; i++) {
-                            const paramObject = {
-                                threadId: threads[i].thread_id,
-                                limit: 50
-                            }
                             const threadMessages = await getMessages(threads[i].thread_id, 50, token!);
                             const threadIdObject = {
                                 id: threads[i].thread_id,

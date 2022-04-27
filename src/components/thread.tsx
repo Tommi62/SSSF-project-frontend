@@ -196,10 +196,6 @@ const Thread = ({ messages, id, websocket, messageAmount, setMessageAmount, setT
                 amount = messageAmount;
             }
             const token = localStorage.getItem('token');
-            const paramObject = {
-                threadId : id,
-                limit: 0
-            }
             const allMessages = await getMessages(id, 0, token!);
             const messagesToSplice = allMessages.data;
             console.log('MESSAGE AMOUNT', messageAmount, messagesToSplice);
