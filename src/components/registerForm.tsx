@@ -52,8 +52,8 @@ const RegisterForm = ({ setToggle }: propType) => {
             if (available) {
                 delete inputs.confirm;
                 const result = await register(inputs);
-                if (result.length > 0) {
-                    alert(result);
+                if (result.message === 'Success') {
+                    alert('User created successfully');
                     setToggle(true);
                 }
             }
@@ -69,7 +69,7 @@ const RegisterForm = ({ setToggle }: propType) => {
     });
 
     useEffect(() => {
-        ValidatorForm.addValidationRule('isAvailable', async (value) => {
+        ValidatorForm.addValidationRule('isAvailable', async (value: string) => {
             if (value.length > 2) {
                 try {
                     const available = await getUserAvailable(value);
@@ -78,6 +78,8 @@ const RegisterForm = ({ setToggle }: propType) => {
                     console.log(e.message);
                     return true;
                 }
+            } else {
+                return true;
             }
         });
 

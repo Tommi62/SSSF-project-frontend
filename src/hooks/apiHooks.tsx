@@ -9,21 +9,6 @@ interface inputsObject {
     password: string
 }
 
-const doFetch = async (url: string, options = {}) => {
-    const response = await fetch(config.backendUrl + url, options);
-    const json = await response.json();
-    if (json.error) {
-        // if API response contains error message (use Postman to get further details)
-        throw new Error(json.message + ': ' + json.error);
-    } else if (!response.ok) {
-        // if API response does not contain error message, but there is some other error
-        throw new Error('doFetch failed');
-    } else {
-        // if all goes well
-        return json;
-    }
-};
-
 const doQueryFetch = async (query: fetchQuery, token: string) => {
     let options = {};
     
@@ -48,7 +33,7 @@ const doQueryFetch = async (query: fetchQuery, token: string) => {
         };
     }
     try {
-      const response = await fetch(config.backendUrl, options);
+      const response = await fetch('https://chatapptommiov.azurewebsites.net/graphql', options);
       const json = await response.json();
       return json;
     }
@@ -60,49 +45,94 @@ const doQueryFetch = async (query: fetchQuery, token: string) => {
 
 const useUsers = () => {
 
-    const getUsers = async () => {
-        const fetchOptions = {
-            method: 'GET',
-            credentials: 'include',
-        };
+    const getUsers = async (token: string) => {
         try {
-            return await doFetch('/users', fetchOptions);
+            const query = {
+                query: `
+                {
+                    getAllUsers{
+                        id,
+                        username,
+                    }
+                }
+                `,
+                variables: {}
+              };
+              const data = await doQueryFetch(query, token);
+              let message = 'Success';
+              if (data.errors) {
+                console.log(data.errors[0]);
+                message = data.errors[0].message;
+              }
+              const returnObject = {
+                  message,
+                  data: data.data.getAllUsers
+              }
+              return returnObject;
         } catch (e) {
-            throw new Error(e.message);
+            console.log(e.message);
+            const returnObject = {
+                message: e.message,
+                data: null,
+            }
+            return returnObject;
         }
     };
 
-    const getUserAvailable = async (username: String) => {
+    const getUserAvailable = async (username: string) => {
         try {
-            return await doFetch('/users/username/' + username);
+            const query = {
+                query: `
+                {
+                    getUserByUsername(username: "${username}"){
+                        id, 
+                        username,
+                    }
+                }
+                `,
+                variables: {username}
+              };
+              const data = await doQueryFetch(query, 'no token');
+              if (data.errors) return false;
+              if (data.data.getUserByUsername !== null) return false
+              return true;
         } catch (e) {
-            alert(e.message);
+            console.log(e.message);
+            return false;
         }
     };
 
-    const getUsernameById = async (id: number) => {
+    const register = async (inputs: inputsObject) => {
         try {
-            return await doFetch('/user/' + id);
+            const query = {
+                query: `
+                mutation {
+                    registerUser( username: "${inputs.username}", password: "${inputs.password}") {
+                        id,
+                        username
+                    }
+                }
+                `,
+                variables: inputs
+              };
+              const data = await doQueryFetch(query, 'no token');
+              let message = 'Success';
+              if (data.errors) {
+                console.log(data.errors[0]);
+                message = data.errors[0].message;
+              }
+              const returnObject = {
+                  message,
+                  data: data.data.register
+              }
+              return returnObject;
         } catch (e) {
-            alert(e.message);
-        }
-    };
-
-    const register = async (inputs: Object) => {
-        const fetchOptions = {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(inputs),
-            credentials: 'include',
-        };
-        try {
-            const result = await doFetch('/user', fetchOptions);
-            console.log('RegisterResult', result.message)
-            return result.message
-        } catch (e) {
-            alert(e.message);
+            console.log(e.message);
+            const returnObject = {
+                message: e.message,
+                data: null,
+            }
+            return returnObject;
         }
     };
 
@@ -163,42 +193,10 @@ const useUsers = () => {
         }
     };
 
-    const logout = async () => {
-        const fetchOptions = {
-            method: 'DELETE',
-            credentials: 'include',
-        };
-        try {
-            return await doFetch('/logout', fetchOptions);
-        } catch (e) {
-            throw new Error(e.message);
-        }
-    }
-
-    const getProfile = async () => {
-        const fetchOptions = {
-            method: 'GET',
-            credentials: 'include',
-        };
-        try {
-            return await doFetch('/profile', fetchOptions);
-        } catch (e) {
-            throw new Error(e.message);
-        }
-    };
-
-    return { getUsers, getUserAvailable, getUsernameById, register, getLoggedInUser, postLogin, logout, getProfile };
+    return { getUsers, getUserAvailable, register, getLoggedInUser, postLogin };
 };
 
 const useChats = () => {
-
-    const getThreadIds = async (userId: number) => {
-        try {
-            return await doFetch('/threads/' + userId);
-        } catch (e) {
-            alert(e.message);
-        }
-    };
 
     const getThreads = async (token: string) => {
         try {
@@ -239,11 +237,6 @@ const useChats = () => {
             return returnObject;
         }
     };
-
-    interface messageParams {
-        threadId: string,
-        limit: number
-    }
 
     const getMessages = async (threadId: string, mLimit: number, token: string) => {
         try {
@@ -336,66 +329,134 @@ const useChats = () => {
         }
     };
 
-    const getUserIds = async (userId: number) => {
+    interface messageObject {
+        contents: string,
+        timestamp: string,
+        threadId: string
+    }
+
+    const postMessage = async (messageObject: messageObject, token: string) => {
         try {
-            return await doFetch('/threadusers/' + userId);
+            const query = {
+                query: `
+                mutation {
+                    postMessage(contents: "${messageObject.contents}", timestamp: "${messageObject.timestamp}", thread: "${messageObject.threadId}") {
+                        id,
+                        contents,
+                        thread {
+                            id,
+                            name
+                        },
+                        user {
+                            id,
+                            username
+                        }
+                    }
+                }
+                `,
+                variables: messageObject
+              };
+              const data = await doQueryFetch(query, token);
+              let message = 'Success';
+              if (data.errors) {
+                console.log(data.errors[0]);
+                message = data.errors[0].message;
+              }
+              const returnObject = {
+                  message,
+                  data: data.data.postMessage
+              }
+              return returnObject;
         } catch (e) {
-            alert(e.message);
+            console.log(e.message);
+            const returnObject = {
+                message: e.message,
+                data: null,
+            }
+            return returnObject;
         }
     };
 
-    const getThreadName = async (threadId: number) => {
+    const createNewChatThread = async (name: string, threadPrivate: boolean, token: string) => {
         try {
-            const thread = await doFetch('/thread/' + threadId);
-            return thread.name;
+            const query = {
+                query: `
+                mutation {
+                    createChatThread(name: "${name}", private: ${threadPrivate}) {
+                        id,
+                        name,
+                        private,
+                        creator {
+                            id,
+                            username
+                        }
+                    }
+                }
+                `,
+                variables: {name, threadPrivate}
+              };
+              const data = await doQueryFetch(query, token);
+              let message = 'Success';
+              if (data.errors) {
+                console.log(data.errors[0]);
+                message = data.errors[0].message;
+              }
+              const returnObject = {
+                  message,
+                  data: data.data.createChatThread
+              }
+              return returnObject;
         } catch (e) {
-            alert(e.message);
+            console.log(e.message);
+            const returnObject = {
+                message: e.message,
+                data: null,
+            }
+            return returnObject;
         }
     };
 
-    const postMessage = async (messageObject: Object) => {
-        const fetchOptions = {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: messageObject,
-            credentials: 'include',
-        };
+    const createNewChatting = async (threadId: string, userId: string, token: string) => {
         try {
-            const result = await doFetch('/message', fetchOptions);
-            return result.success
+            const query = {
+                query: `
+                mutation {
+                    createChatting(thread: "${threadId}", user: "${userId}") {
+                        thread {
+                            id,
+                            name
+                        },
+                        user {
+                            id,
+                            username
+                        }
+                    }
+                }
+                `,
+                variables: {threadId, userId}
+              };
+              const data = await doQueryFetch(query, token);
+              let message = 'Success';
+              if (data.errors) {
+                console.log(data.errors[0]);
+                message = data.errors[0].message;
+              }
+              const returnObject = {
+                  message,
+                  data: data.data.createChatting
+              }
+              return returnObject;
         } catch (e) {
-            alert(e.message);
+            console.log(e.message);
+            const returnObject = {
+                message: e.message,
+                data: null,
+            }
+            return returnObject;
         }
     };
 
-    const getAllMessages = async (threadId: number) => {
-        try {
-            return await doFetch('/all_messages/' + threadId);
-        } catch (e) {
-            alert(e.message);
-        }
-    };
-
-    const createNewChatThread = async (chatThreadObject: Object) => {
-        const fetchOptions = {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: chatThreadObject,
-            credentials: 'include',
-        };
-        try {
-            const result = await doFetch('/new_thread', fetchOptions);
-            return result
-        } catch (e) {
-            alert(e.message);
-        }
-    };
-
-    return { getThreadIds, getUserIds, getThreadName, postMessage, getMessages, getAllMessages, getLastMessage, createNewChatThread, getThreads }
+    return { postMessage, getMessages, getLastMessage, createNewChatThread, createNewChatting, getThreads }
 }
 
 export { useUsers, useChats };

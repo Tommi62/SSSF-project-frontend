@@ -160,26 +160,29 @@ const Thread = ({ messages, id, websocket, messageAmount, setMessageAmount, setT
                 const tzoffset = (new Date()).getTimezoneOffset() * 60000;
                 const localISOTime = (new Date(Date.now() - tzoffset)).toISOString().slice(0, -1);
                 console.log('TIMEST: ', localISOTime)
-                const messageObject = JSON.stringify({
+                const messageObject = {
                     contents: message,
                     timestamp: localISOTime,
-                    user_id: user,
-                    thread_id: id,
+                    threadId: id,
 
-                });
-                const success = await postMessage(messageObject)
+                };
+                const token = localStorage.getItem('token');
+                const success = await postMessage(messageObject, token!);
                 console.log('SUCCESS: ', success)
-                const webSocketUpdate = {
-                    type: 'message',
-                    contents: message,
-                    timestamp: localISOTime,
-                    user_id: user,
-                    thread_id: id
+                if(success.message === 'Success'){
+                    const webSocketUpdate = {
+                        type: 'message',
+                        contents: message,
+                        timestamp: localISOTime,
+                        status: success.data.status,
+                        thread: success.data.thread,
+                        user: success.data.user
+                    }
+                    if (websocket !== undefined) {
+                        websocket.send(JSON.stringify(webSocketUpdate));
+                    }
+                    setMessage('');
                 }
-                if (websocket !== undefined) {
-                    websocket.send(JSON.stringify(webSocketUpdate));
-                }
-                setMessage('');
             }
         } catch (e) {
             console.log(e.message);
@@ -211,7 +214,7 @@ const Thread = ({ messages, id, websocket, messageAmount, setMessageAmount, setT
     const closeThread = () => {
         try {
             setThreadOpen(false);
-            setThreadId(0);
+            setThreadId('0');
         } catch (e) {
             console.log(e.message);
         }
@@ -230,6 +233,7 @@ const Thread = ({ messages, id, websocket, messageAmount, setMessageAmount, setT
                         <List>
                             {moreMessages.map((item, index) => (
                                 <Message
+                                    key={Date.now() + Math.random() * 500}
                                     message_id={item.id}
                                     user_id={item.user.id}
                                     contents={item.contents}
@@ -249,6 +253,7 @@ const Thread = ({ messages, id, websocket, messageAmount, setMessageAmount, setT
                     <List>
                         {messages.map((item, index) => (
                             <Message
+                                key={Date.now() + Math.random() * 500}
                                 message_id={item.id}
                                 user_id={item.user.id}
                                 contents={item.contents}

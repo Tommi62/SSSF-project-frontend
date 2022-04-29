@@ -2,9 +2,13 @@
 import { Button, Grid, ListItem, ListItemText, makeStyles, Typography } from "@material-ui/core";
 import { useContext, useState } from "react";
 import { useEffect } from "react";
-import { WebsocketContext } from "../contexts/websocketContext";
 import { useChats } from '../hooks/apiHooks';
 import moment from 'moment';
+
+interface updateThreadObject {
+    id: string,
+    update: number
+}
 
 interface propType {
     id: string,
@@ -14,6 +18,7 @@ interface propType {
     threadOpen: Boolean,
     threadId: string,
     updateThreadButtonInfos: number,
+    threadToUpdate: updateThreadObject,
 }
 
 interface lastMessageObject {
@@ -58,64 +63,66 @@ const useStyles = makeStyles((theme) => ({
     }
 }));
 
-const ThreadButton = ({ id, threadName, setThreadOpen, setThreadId, threadOpen, threadId, updateThreadButtonInfos }: propType) => {
+const ThreadButton = ({ id, threadName, setThreadOpen, setThreadId, threadOpen, threadId, updateThreadButtonInfos, threadToUpdate}: propType) => {
     const { getLastMessage } = useChats();
     const [lastMessage, setLastMessage] = useState<lastMessageObject>({
         username: '',
         contents: '',
         timestamp: ''
     });
-    const { websocket } = useContext(WebsocketContext);
     const classes = useStyles();
 
     useEffect(() => {
         (async () => {
-            try {
-                const token = localStorage.getItem('token');
-                if (token !== null) {
-                    const lastMessageData = await getLastMessage(id, token!)
-                    if (lastMessageData.data.length !== 0) {
-                        const now = moment().startOf('day')
-                        const formatedDate = moment(lastMessageData.data[0].timestamp).startOf('day');
-                        const difference = now.diff(formatedDate, 'days');
-                        let formatedTime;
-                        if (difference === 0) {
-                            const d = new Date(lastMessageData.data[0].timestamp);
-                            let hours = d.getHours().toString();
-                            let minutes = d.getMinutes().toString();
-                            if (d.getHours() < 10) {
-                                hours = '0' + hours;
+            try { 
+                if(threadToUpdate.id === '0' || threadToUpdate.id == id) {
+                    console.log('IDD', id, threadToUpdate);
+                    const token = localStorage.getItem('token');
+                    if (token !== null) {
+                        const lastMessageData = await getLastMessage(id, token!)
+                        if (lastMessageData.data.length !== 0) {
+                            const now = moment().startOf('day')
+                            const formatedDate = moment(lastMessageData.data[0].timestamp).startOf('day');
+                            const difference = now.diff(formatedDate, 'days');
+                            let formatedTime;
+                            if (difference === 0) {
+                                const d = new Date(lastMessageData.data[0].timestamp);
+                                let hours = d.getHours().toString();
+                                let minutes = d.getMinutes().toString();
+                                if (d.getHours() < 10) {
+                                    hours = '0' + hours;
+                                }
+                                if (d.getMinutes() < 10) {
+                                    minutes = '0' + minutes;
+                                }
+                                formatedTime = hours + '.' + minutes;
+                            } else if (difference === 1) {
+                                formatedTime = 'Yesterday';
+                            } else {
+                                formatedTime = moment(lastMessageData.data[0].timestamp).format('DD.MM.YYYY');
                             }
-                            if (d.getMinutes() < 10) {
-                                minutes = '0' + minutes;
-                            }
-                            formatedTime = hours + '.' + minutes;
-                        } else if (difference === 1) {
-                            formatedTime = 'Yesterday';
-                        } else {
-                            formatedTime = moment(lastMessageData.data[0].timestamp).format('DD.MM.YYYY');
-                        }
 
-                        const lastMessageObject = {
-                            username: lastMessageData.data[0].user.username + ':',
-                            contents: lastMessageData.data[0].contents,
-                            timestamp: formatedTime,
+                            const lastMessageObject = {
+                                username: lastMessageData.data[0].user.username + ':',
+                                contents: lastMessageData.data[0].contents,
+                                timestamp: formatedTime,
+                            }
+                            setLastMessage(lastMessageObject);
+                        } else {
+                            const noLastMessageObject = {
+                                username: 'No messages yet.',
+                                contents: '',
+                                timestamp: '',
+                            }
+                            setLastMessage(noLastMessageObject);
                         }
-                        setLastMessage(lastMessageObject);
-                    } else {
-                        const noLastMessageObject = {
-                            username: 'No messages yet.',
-                            contents: '',
-                            timestamp: '',
-                        }
-                        setLastMessage(noLastMessageObject);
                     }
                 }
             } catch (e) {
                 console.log(e.message);
             }
         })();
-    }, [id, updateThreadButtonInfos]);
+    }, [threadToUpdate]);
 
     const openThread = () => {
         try {
@@ -125,12 +132,9 @@ const ThreadButton = ({ id, threadName, setThreadOpen, setThreadId, threadOpen, 
             } else {
                 if (threadId === id) {
                     setThreadOpen(false)
-                    setThreadId(0)
+                    setThreadId('0')
                 } else {
                     setThreadId(id)
-                }
-                if (websocket !== undefined) {
-                    websocket.close();
                 }
             }
         } catch (e) {

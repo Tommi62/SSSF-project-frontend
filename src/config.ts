@@ -5,7 +5,7 @@ const envConfig = {
         backendUrl: 'http://localhost:3001/graphql'
     },
     production: {
-        backendUrl: 'https://something.com'
+        backendUrl: 'http://localhost:3001/graphql'
     }
 }
 

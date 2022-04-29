@@ -60,8 +60,10 @@ interface threadsArray {
 
 interface sortedThreadsArray {
     id: string,
+    contents: string,
     timestamp: string,
     name: string,
+    username: string
 }
 
 interface userObject {
@@ -84,10 +86,10 @@ interface messagesArray {
 }
 
 interface creatorObject {
-    username: true
+    username: string
 }
 
-interface threadObject {
+interface threadDataObject {
     id: string,
     name: string,
     private: boolean,
@@ -95,7 +97,7 @@ interface threadObject {
 }
 
 interface threadDataArray {
-    thread: threadObject
+    thread: threadDataObject
 }
 
 const Home = ({ history }: propType) => {
@@ -103,8 +105,8 @@ const Home = ({ history }: propType) => {
     const { user, setUser } = useContext(MediaContext);
     const [username, setusername] = useState('');
     const { websocket, setWebsocket } = useContext(WebsocketContext);
-    const { getLoggedInUser, getUsernameById } = useUsers();
-    const { getThreads, getMessages } = useChats();
+    const { getLoggedInUser } = useUsers();
+    const { getThreads, getMessages, getLastMessage } = useChats();
     const { height } = useWindowDimensions();
     const [heightCorrected, setHeightCorrected] = useState(height - 64);
     const [threads, setThreads] = useState<threadsArray[]>([]);
@@ -118,12 +120,23 @@ const Home = ({ history }: propType) => {
     const [updateThreadButtonInfos, setUpdateThreadButtonInfos] = useState(Date.now());
     const [messageAmount, setMessageAmount] = useState(50);
     const [modalOpen, setModalOpen] = useState(false);
+    const [threadToUpdate, setThreadToUpdate] = useState({
+        id: '0',
+        update: Date.now()
+    });
     const [wsMessage, setWsMessage] = useState({
         type: '',
         contents: '',
-        timestamp: new Date(),
-        user_id: 0,
-        thread_id: 0
+        timestamp: String(new Date()),
+        status: 'unseen',
+        thread: {
+            id: '0',
+            name: '',
+        },
+        user: {
+            id: '0',
+            username: ''
+        },
     });
 
     const isMobile = useMediaQuery({
@@ -204,11 +217,13 @@ const Home = ({ history }: propType) => {
                         const token = localStorage.getItem('token');
                         if ( token === null) history.push('/login');
                         for (let i = 0; i < threads.length; i++) {
-                            const threadMessages = await getMessages(threads[i].thread_id, 50, token!);
+                            const threadMessages = await getLastMessage(threads[i].thread_id, token!);
                             const threadIdObject = {
                                 id: threads[i].thread_id,
+                                contents: threadMessages.data.length > 0 ? threadMessages.data[0].contents : '',
                                 timestamp: threadMessages.data.length > 0 ? threadMessages.data[0].timestamp : '1999-02-06T05:47:00',
-                                name: threads[i].thread_name
+                                name: threads[i].thread_name,
+                                username: threadMessages.data.length > 0 ? threadMessages.data[0].user.username : '',
                             };
                             idArray.push(threadIdObject);
                         }
@@ -222,14 +237,16 @@ const Home = ({ history }: propType) => {
             }
         })();
     }, [threads, updateThreadButtonInfos]);
-/*
+
     useEffect(() => {
         (async () => {
             try {
-                if (threadId !== 0) {
-                    const threadMessages = await getMessages(threadId);
-                    const reversedArray = threadMessages.reverse();
-                    setMessages(reversedArray);
+                if (threadId !== '0') {
+                    const token = localStorage.getItem('token');
+                    if ( token === null) history.push('/login');
+                    const threadMessages = await getMessages(threadId, 50, token!);
+                    if (threadMessages.message === 'Not authorized') history.push('/login');
+                    setMessages(threadMessages.data);
                 }
             } catch (e) {
                 console.log(e.message);
@@ -239,12 +256,14 @@ const Home = ({ history }: propType) => {
 
     useEffect(() => {
         try {
-            if (wsMessage.type !== '' && wsMessage.thread_id === threadId) {
-                const newMessageObject = {
-                    id: Date.now(),
-                    user_id: wsMessage.user_id,
+            if (wsMessage.type !== '' && wsMessage.thread.id === threadId) {
+                const newMessageObject: messagesArray = {
+                    id: String(Date.now()),
                     contents: wsMessage.contents,
                     timestamp: wsMessage.timestamp,
+                    status: wsMessage.status,
+                    thread: wsMessage.thread,
+                    user: wsMessage.user
                 }
                 setMessages(messages => [...messages, newMessageObject]);
                 setMessageAmount(messageAmount + 1);
@@ -253,14 +272,13 @@ const Home = ({ history }: propType) => {
             console.log(e.message);
         }
     }, [wsMessage]);
-*/
 
     useEffect(() => {
         try {
             if (threads.length !== 0) {
                 if (websocket === undefined || websocket.readyState === 2 || websocket.readyState === 3) {
                     console.log('READYSTATE ', websocket?.readyState)
-                    const socket = new WebSocket('ws://localhost:3001');
+                    const socket = new WebSocket('wss://chatapptommiov.azurewebsites.net');
 
                     socket.addEventListener('open', function (event) {
                         try {
@@ -279,13 +297,21 @@ const Home = ({ history }: propType) => {
                     socket.addEventListener('message', function (event) {
                         try {
                             if (event.data !== 'ping') {
-                                console.log('Message from server ', JSON.parse(event.data).thread_id);
+                                console.log('Message from server ', JSON.parse(event.data).thread);
                                 const message = JSON.parse(event.data);
                                 if (message.type === 'message') {
                                     setWsMessage(message);
                                     setUpdateThreadButtonInfos(Date.now());
+                                    setThreadToUpdate({
+                                        id: message.thread.id,
+                                        update: Date.now()
+                                    });
                                 } else if (message.type === 'newThread') {
                                     setUpdateThreadButtons(Date.now());
+                                    setThreadToUpdate({
+                                        id: '0',
+                                        update: Date.now()
+                                    });
                                 }
                             } else {
                                 setTimeout(() => socket.send('pong'), 1000);
@@ -354,7 +380,7 @@ const Home = ({ history }: propType) => {
                                 <List style={{ padding: 0, width: '100vw' }}>
                                     {sortedThreads.map((item) => (
                                         <ThreadButton
-                                            key={Date.now() + Math.random() * 500}
+                                            key={item.id}
                                             id={item.id}
                                             threadName={item.name}
                                             setThreadOpen={setThreadOpen}
@@ -362,6 +388,7 @@ const Home = ({ history }: propType) => {
                                             threadOpen={threadOpen}
                                             threadId={threadId}
                                             updateThreadButtonInfos={updateThreadButtonInfos}
+                                            threadToUpdate={threadToUpdate}
                                         />
                                     ))}{' '}
                                 </List>
@@ -387,7 +414,7 @@ const Home = ({ history }: propType) => {
                                         <List style={{ padding: 0, width: '100%' }}>
                                             {sortedThreads.map((item) => (
                                                 <ThreadButton
-                                                    key={Date.now() + Math.random() * 500}
+                                                    key={item.id}
                                                     id={item.id}
                                                     threadName={item.name}
                                                     setThreadOpen={setThreadOpen}
@@ -395,6 +422,7 @@ const Home = ({ history }: propType) => {
                                                     threadOpen={threadOpen}
                                                     threadId={threadId}
                                                     updateThreadButtonInfos={updateThreadButtonInfos}
+                                                    threadToUpdate={threadToUpdate}
                                                 />
                                             ))}{' '}
                                         </List>
@@ -435,7 +463,7 @@ const Home = ({ history }: propType) => {
                                     <List style={{ padding: 0, width: '100%' }}>
                                         {sortedThreads.map((item) => (
                                             <ThreadButton
-                                                key={Date.now() + Math.random() * 500}
+                                                key={item.id}
                                                 id={item.id}
                                                 threadName={item.name}
                                                 setThreadOpen={setThreadOpen}
@@ -443,6 +471,7 @@ const Home = ({ history }: propType) => {
                                                 threadOpen={threadOpen}
                                                 threadId={threadId}
                                                 updateThreadButtonInfos={updateThreadButtonInfos}
+                                                threadToUpdate={threadToUpdate}
                                             />
                                         ))}{' '}
                                     </List>

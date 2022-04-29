@@ -7,7 +7,6 @@ import { WebsocketProvider } from './contexts/websocketContext';
 import Home from './views/home';
 import Login from './views/login';
 import Logout from './views/logout';
-import Profile from './views/profile';
 
 const useStyles = makeStyles((theme) => ({
   content: {
@@ -40,7 +39,6 @@ const App = () => {
                 <Route path="/" exact component={Home} />
                 <Route path="/login" component={Login} />
                 <Route path="/logout" component={Logout} />
-                <Route path="/profile" component={Profile} />
               </Switch>
             </main>
 

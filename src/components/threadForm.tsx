@@ -1,4 +1,5 @@
 import { Button, FormControl, Grid, InputLabel, makeStyles, MenuItem, Select, Typography } from "@material-ui/core"
+import { FormControlLabel, Radio, RadioGroup } from "@mui/material";
 import { useState } from "react";
 import { useContext, useEffect } from "react";
 import { TextValidator, ValidatorForm } from "react-material-ui-form-validator"
@@ -44,10 +45,10 @@ const useStyles = makeStyles((theme) => ({
 const ThreadForm = ({ websocket, setModalOpen, setThreadOpen, setThreadId }: propTypes) => {
     const classes = useStyles();
     const { user } = useContext(MediaContext);
-    const { createNewChatThread } = useChats();
+    const { createNewChatThread, createNewChatting } = useChats();
     const { getUsers } = useUsers();
     const [usersArray, setUsersArray] = useState<usersArrayType[]>([]);
-    const [newThreadId, setNewThreadId] = useState(0);
+    const [newThreadId, setNewThreadId] = useState('0');
 
     const validators = {
         threadName: ['required', 'minStringLength: 3', 'maxStringLength: 25'],
@@ -63,16 +64,25 @@ const ThreadForm = ({ websocket, setModalOpen, setThreadOpen, setThreadId }: pro
 
     const createNewThread = async () => {
         try {
-            if (inputs.user2 !== '') {
-                const chatThreadObject = JSON.stringify({
-                    name: inputs.threadName,
-                    user_id: user,
-                    user2_id: inputs.user2
-
-                });
-                const success = await createNewChatThread(chatThreadObject);
-                console.log('SUCCESS: ', success.success)
-                setNewThreadId(success.id);
+            if (inputs.user2.length !== 0) {
+                const token = localStorage.getItem('token');
+                const success = await createNewChatThread(inputs.threadName, inputs.private, token!);
+                console.log('SUCCESS: ', success.message);
+                if (success.message === 'Success') {
+                    let count = 0;
+                    for(let i = 0; i < inputs.user2.length; i++) {
+                        console.log('Params', success.data.id, inputs.user2[i]);
+                        const joinThread = await createNewChatting(success.data.id, inputs.user2[i], token!);
+                        if (joinThread.message === 'Success') {
+                            count++
+                        }
+                    }
+                    if (count === inputs.user2.length) {
+                        setNewThreadId(success.data.id);
+                    } else {
+                        alert('Something went wrong');
+                    }
+                }
             } else {
                 alert('Choose a user with whom you want to chat!');
             }
@@ -83,18 +93,22 @@ const ThreadForm = ({ websocket, setModalOpen, setThreadOpen, setThreadId }: pro
 
     const { inputs, handleInputChange, handleSubmit } = useForm(createNewThread, {
         threadName: '',
-        user2: '',
+        user2: [],
+        private: true,
     });
 
     useEffect(() => {
         try {
-            if (newThreadId !== 0) {
+            if (newThreadId !== '0') {
                 console.log('NEWTHREADID', newThreadId);
                 const webSocketUpdate = {
                     type: 'newThread',
                     user_id: user,
-                    user2_id: inputs.user2,
-                    thread_id: newThreadId,
+                    user2: inputs.user2,
+                    thread: {
+                        id: newThreadId,
+                        name: inputs.threadName
+                    }
                 }
                 if (websocket !== undefined) {
                     websocket.send(JSON.stringify(webSocketUpdate));
@@ -111,11 +125,12 @@ const ThreadForm = ({ websocket, setModalOpen, setThreadOpen, setThreadId }: pro
     useEffect(() => {
         (async () => {
             try {
-                const users = await getUsers();
+                const token = localStorage.getItem('token');
+                const users = await getUsers(token!);
                 let arrayForUsers = [];
-                for (let i = 0; i < users.length; i++) {
-                    if (users[i].id !== user) {
-                        arrayForUsers.push(users[i]);
+                for (let i = 0; i < users.data.length; i++) {
+                    if (users.data[i].id !== user) {
+                        arrayForUsers.push(users.data[i]);
                     }
                 }
                 setUsersArray(arrayForUsers);
@@ -150,12 +165,27 @@ const ThreadForm = ({ websocket, setModalOpen, setThreadOpen, setThreadId }: pro
                                 label="User"
                                 onChange={handleInputChange}
                                 autoWidth
+                                multiple
                                 className={classes.select}
                             >
                                 {usersArray.map((item) => (
                                     <MenuItem value={item.id}>{item.username}</MenuItem>
                                 ))}{' '}
                             </Select>
+                        </FormControl>
+                    </Grid>
+                    <Grid container item justifyContent="center">
+                        <FormControl className={classes.formControl}>
+                            <InputLabel>Private</InputLabel>
+                            <RadioGroup
+                                aria-labelledby="demo-controlled-radio-buttons-group"
+                                name="private"
+                                value={inputs.private}
+                                onChange={handleInputChange}
+                            >
+                                <FormControlLabel value={true} control={<Radio />} label="Yes" />
+                                <FormControlLabel value={false} control={<Radio />} label="No" />
+                            </RadioGroup>
                         </FormControl>
                     </Grid>
                     <Grid container item justifyContent="center">
