@@ -1,5 +1,5 @@
 import { Button, FormControl, Grid, InputLabel, makeStyles, MenuItem, Select, Typography } from "@material-ui/core"
-import { FormControlLabel, Radio, RadioGroup } from "@mui/material";
+import { FormControlLabel, FormLabel, Radio, RadioGroup } from "@mui/material";
 import { useState } from "react";
 import { useContext, useEffect } from "react";
 import { TextValidator, ValidatorForm } from "react-material-ui-form-validator"
@@ -67,11 +67,9 @@ const ThreadForm = ({ websocket, setModalOpen, setThreadOpen, setThreadId }: pro
             if (inputs.user2.length !== 0) {
                 const token = localStorage.getItem('token');
                 const success = await createNewChatThread(inputs.threadName, inputs.private, token!);
-                console.log('SUCCESS: ', success.message);
                 if (success.message === 'Success') {
                     let count = 0;
                     for(let i = 0; i < inputs.user2.length; i++) {
-                        console.log('Params', success.data.id, inputs.user2[i]);
                         const joinThread = await createNewChatting(success.data.id, inputs.user2[i], token!);
                         if (joinThread.message === 'Success') {
                             count++
@@ -100,7 +98,6 @@ const ThreadForm = ({ websocket, setModalOpen, setThreadOpen, setThreadId }: pro
     useEffect(() => {
         try {
             if (newThreadId !== '0') {
-                console.log('NEWTHREADID', newThreadId);
                 const webSocketUpdate = {
                     type: 'newThread',
                     user_id: user,
@@ -167,17 +164,29 @@ const ThreadForm = ({ websocket, setModalOpen, setThreadOpen, setThreadId }: pro
                                 autoWidth
                                 multiple
                                 className={classes.select}
+                                MenuProps={{
+                                    anchorOrigin: {
+                                      vertical: "bottom",
+                                      horizontal: "center"
+                                    },
+                                    transformOrigin: {
+                                      vertical: "top",
+                                      horizontal: "center"
+                                    },
+                                    getContentAnchorEl: null
+                                  }}
                             >
                                 {usersArray.map((item) => (
-                                    <MenuItem value={item.id}>{item.username}</MenuItem>
+                                    <MenuItem key={item.id} value={item.id}>{item.username}</MenuItem>
                                 ))}{' '}
                             </Select>
                         </FormControl>
                     </Grid>
                     <Grid container item justifyContent="center">
                         <FormControl className={classes.formControl}>
-                            <InputLabel>Private</InputLabel>
+                            <FormLabel>Private</FormLabel>
                             <RadioGroup
+                                row
                                 aria-labelledby="demo-controlled-radio-buttons-group"
                                 name="private"
                                 value={inputs.private}

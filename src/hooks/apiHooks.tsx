@@ -1,4 +1,4 @@
-import config from '../config'
+import config from "../config";
 
 interface fetchQuery {
     query: string
@@ -33,7 +33,7 @@ const doQueryFetch = async (query: fetchQuery, token: string) => {
         };
     }
     try {
-      const response = await fetch('https://chatapptommiov.azurewebsites.net/graphql', options);
+      const response = await fetch(config.backendUrl, options);
       const json = await response.json();
       return json;
     }

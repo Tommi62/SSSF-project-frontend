@@ -141,7 +141,6 @@ const Thread = ({ messages, id, websocket, messageAmount, setMessageAmount, setT
                     setMessageAmount(50);
                 }
                 setCurrentThread(id);
-                console.log('messageUpdate')
                 if (messages.length >= 50 && !loadMore) {
                     setShowButton(true);
                 } else {
@@ -159,7 +158,6 @@ const Thread = ({ messages, id, websocket, messageAmount, setMessageAmount, setT
             if (message !== '') {
                 const tzoffset = (new Date()).getTimezoneOffset() * 60000;
                 const localISOTime = (new Date(Date.now() - tzoffset)).toISOString().slice(0, -1);
-                console.log('TIMEST: ', localISOTime)
                 const messageObject = {
                     contents: message,
                     timestamp: localISOTime,
@@ -168,7 +166,6 @@ const Thread = ({ messages, id, websocket, messageAmount, setMessageAmount, setT
                 };
                 const token = localStorage.getItem('token');
                 const success = await postMessage(messageObject, token!);
-                console.log('SUCCESS: ', success)
                 if(success.message === 'Success'){
                     const webSocketUpdate = {
                         type: 'message',
@@ -201,7 +198,6 @@ const Thread = ({ messages, id, websocket, messageAmount, setMessageAmount, setT
             const token = localStorage.getItem('token');
             const allMessages = await getMessages(id, 0, token!);
             const messagesToSplice = allMessages.data;
-            console.log('MESSAGE AMOUNT', messageAmount, messagesToSplice);
             messagesToSplice.splice(messagesToSplice.length - amount, amount);
             setMoreMessages(messagesToSplice);
             setLoadMore(true);
@@ -228,12 +224,12 @@ const Thread = ({ messages, id, websocket, messageAmount, setMessageAmount, setT
                 </Button>
             }
             <Grid container justifyContent="center" direction="column" style={{ height: heightCorrected }}>
-                <Grid item justifyContent="center" className={classes.thread}>
+                <Grid item className={classes.thread}>
                     {loadMore &&
                         <List>
                             {moreMessages.map((item, index) => (
                                 <Message
-                                    key={Date.now() + Math.random() * 500}
+                                    key={item.id}
                                     message_id={item.id}
                                     user_id={item.user.id}
                                     contents={item.contents}
@@ -253,7 +249,7 @@ const Thread = ({ messages, id, websocket, messageAmount, setMessageAmount, setT
                     <List>
                         {messages.map((item, index) => (
                             <Message
-                                key={Date.now() + Math.random() * 500}
+                                key={item.id}
                                 message_id={item.id}
                                 user_id={item.user.id}
                                 contents={item.contents}

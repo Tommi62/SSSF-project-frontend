@@ -11,6 +11,7 @@ import useWindowDimensions from '../hooks/windowDimensionsHook';
 import { useMediaQuery } from 'react-responsive';
 import { makeStyles } from "@material-ui/core/styles";
 import { Card } from '@mui/material';
+import config from '../config';
 
 const useStyles = makeStyles((theme) => ({
     newThreadButton: {
@@ -85,21 +86,6 @@ interface messagesArray {
     user: userObject,
 }
 
-interface creatorObject {
-    username: string
-}
-
-interface threadDataObject {
-    id: string,
-    name: string,
-    private: boolean,
-    creator: creatorObject
-}
-
-interface threadDataArray {
-    thread: threadDataObject
-}
-
 const Home = ({ history }: propType) => {
     const classes = useStyles();
     const { user, setUser } = useContext(MediaContext);
@@ -110,7 +96,6 @@ const Home = ({ history }: propType) => {
     const { height } = useWindowDimensions();
     const [heightCorrected, setHeightCorrected] = useState(height - 64);
     const [threads, setThreads] = useState<threadsArray[]>([]);
-    const [threadData, setThreadData] = useState<threadDataArray[]>([]);
     const [sortedThreads, setSortedThreads] = useState<sortedThreadsArray[]>([]);
     const [threadOpen, setThreadOpen] = useState(false)
     const [threadId, setThreadId] = useState('0');
@@ -162,7 +147,6 @@ const Home = ({ history }: propType) => {
     useEffect(() => {
         (async () => {
             try {
-                console.log('USER: ', user)
                 const token = localStorage.getItem('token');
                 if ( token === null) history.push('/login');
                 const loggedInUser = await getLoggedInUser(token!);
@@ -196,7 +180,6 @@ const Home = ({ history }: propType) => {
                             threadIdArray.push(idObject);
                         }
                         setThreads(threadIdArray);
-                        setThreadData(chatThreads.data);
                     } else {
                         setThreads([{thread_id: '0', thread_name: ''}]);
                     }
@@ -212,7 +195,6 @@ const Home = ({ history }: propType) => {
             try {
                 if (threads.length > 0) {
                     if (threads[0].thread_id !== '0') {
-                        console.log('THREADS', threads);
                         let idArray = [];
                         const token = localStorage.getItem('token');
                         if ( token === null) history.push('/login');
@@ -228,7 +210,6 @@ const Home = ({ history }: propType) => {
                             idArray.push(threadIdObject);
                         }
                         idArray.sort((a, b) => (a.timestamp < b.timestamp) ? 1 : ((b.timestamp < a.timestamp) ? -1 : 0));
-                        console.log('IDARRAY', idArray);
                         setSortedThreads(idArray);
                     }
                 }
@@ -277,8 +258,7 @@ const Home = ({ history }: propType) => {
         try {
             if (threads.length !== 0) {
                 if (websocket === undefined || websocket.readyState === 2 || websocket.readyState === 3) {
-                    console.log('READYSTATE ', websocket?.readyState)
-                    const socket = new WebSocket('wss://chatapptommiov.azurewebsites.net');
+                    const socket = new WebSocket(config.websocketUrl);
 
                     socket.addEventListener('open', function (event) {
                         try {
@@ -297,15 +277,22 @@ const Home = ({ history }: propType) => {
                     socket.addEventListener('message', function (event) {
                         try {
                             if (event.data !== 'ping') {
-                                console.log('Message from server ', JSON.parse(event.data).thread);
+                                console.log('Message from server ', JSON.parse(event.data).thread.name);
                                 const message = JSON.parse(event.data);
                                 if (message.type === 'message') {
                                     setWsMessage(message);
                                     setUpdateThreadButtonInfos(Date.now());
-                                    setThreadToUpdate({
-                                        id: message.thread.id,
-                                        update: Date.now()
-                                    });
+                                    if (isMobile) {
+                                        setThreadToUpdate({
+                                            id: '0',
+                                            update: Date.now()
+                                        });
+                                    } else {
+                                        setThreadToUpdate({
+                                            id: message.thread.id,
+                                            update: Date.now()
+                                        });
+                                    }
                                 } else if (message.type === 'newThread') {
                                     setUpdateThreadButtons(Date.now());
                                     setThreadToUpdate({

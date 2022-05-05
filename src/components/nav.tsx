@@ -50,12 +50,10 @@ const Nav = () => {
     const classes = useStyles();
     const [logged, setLogged] = useState(false);
     const { user, setUser } = useContext(MediaContext);
-    const { getLoggedInUser } = useUsers();
 
     useEffect(() => {
         (async () => {
             try {
-                console.log('NAV');
                 const token = localStorage.getItem('token');
                 token === null ? setLogged(false) : setLogged(true);
             } catch (e) {

@@ -55,7 +55,7 @@ const LoginForm = ({ history }: propType) => {
                 spacing={0}
                 direction="column"
                 alignItems="center"
-                justify="center"
+                justifyContent="center"
             >
                 <Typography className={classes.loginHeader} component="h3" variant="h3" gutterBottom>
                     Login
@@ -66,7 +66,7 @@ const LoginForm = ({ history }: propType) => {
                 spacing={0}
                 direction="column"
                 alignItems="center"
-                justify="center"
+                justifyContent="center"
             >
                 <form onSubmit={handleSubmit}>
                     <Grid container direction="column">

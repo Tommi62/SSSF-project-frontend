@@ -76,7 +76,6 @@ const ThreadButton = ({ id, threadName, setThreadOpen, setThreadId, threadOpen, 
         (async () => {
             try { 
                 if(threadToUpdate.id === '0' || threadToUpdate.id == id) {
-                    console.log('IDD', id, threadToUpdate);
                     const token = localStorage.getItem('token');
                     if (token !== null) {
                         const lastMessageData = await getLastMessage(id, token!)
